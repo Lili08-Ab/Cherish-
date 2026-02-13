@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CARD_TEMPLATES, SUGGESTED_MESSAGES } from '../data/templates';
-import { Sparkles, Heart, CheckCircle2, Share2, Download, Camera, Upload, User, ArrowLeft, Type, Image as ImageIcon, Palette } from 'lucide-react';
+import { Sparkles, Heart, CheckCircle2, Share2, Download, Camera, Upload, User, ArrowLeft, Type, Image as ImageIcon, Palette, FileImage } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const Editor = () => {
   const location = useLocation();
@@ -21,6 +23,7 @@ const Editor = () => {
   const [image, setImage] = useState(null);
   const [isFinished, setIsFinished] = useState(false);
   const fileInputRef = useRef(null);
+  const cardRef = useRef(null);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -33,54 +36,248 @@ const Editor = () => {
     }
   };
 
+  // Fonction pour nettoyer récursivement tous les styles Tailwind
+  const cleanElement = (element) => {
+    // Vérifier si c'est un élément SVG
+    if (element instanceof SVGElement) {
+      // Pour les SVG, utiliser setAttribute au lieu de className
+      element.setAttribute('class', '');
+    } else if (element.className !== undefined) {
+      // Pour les éléments HTML normaux
+      element.className = '';
+    }
+    
+    // Parcourir tous les enfants
+    Array.from(element.children).forEach(child => {
+      cleanElement(child);
+    });
+  };
+
+  // Télécharger en Image (PNG)
+  const downloadAsImage = async () => {
+    if (!cardRef.current) {
+      console.error('Card reference not found');
+      alert('Veuillez attendre que la carte soit chargée');
+      return;
+    }
+    
+    try {
+      // Créer un conteneur temporaire propre sans Tailwind
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'fixed';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.background = selectedTemplate.baseStyles.backgroundColor;
+      document.body.appendChild(tempContainer);
+      
+      // Cloner la carte
+      const cardClone = cardRef.current.cloneNode(true);
+      
+      // Nettoyer TOUS les éléments récursivement
+      cleanElement(cardClone);
+      
+      // Appliquer les styles de base
+      cardClone.style.width = '600px';
+      cardClone.style.aspectRatio = '3/4';
+      cardClone.style.padding = '40px';
+      cardClone.style.backgroundColor = selectedTemplate.baseStyles.backgroundColor;
+      cardClone.style.color = selectedTemplate.baseStyles.textColor;
+      cardClone.style.border = `6px double ${selectedTemplate.baseStyles.borderColor}`;
+      cardClone.style.borderRadius = '16px';
+      cardClone.style.display = 'flex';
+      cardClone.style.flexDirection = 'column';
+      cardClone.style.justifyContent = 'space-between';
+      cardClone.style.textAlign = 'center';
+      cardClone.style.position = 'relative';
+      cardClone.style.overflow = 'hidden';
+      
+      tempContainer.appendChild(cardClone);
+      
+      const canvas = await html2canvas(tempContainer, {
+        scale: 2,
+        backgroundColor: selectedTemplate.baseStyles.backgroundColor,
+        logging: false,
+        useCORS: true,
+        allowTaint: true
+      });
+      
+      document.body.removeChild(tempContainer);
+      
+      const link = document.createElement('a');
+      link.download = `carte-${recipient.replace(/\s+/g, '-')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.error('Erreur lors du téléchargement de l\'image:', error);
+      alert('Erreur lors du téléchargement de l\'image: ' + error.message);
+    }
+  };
+
+  // Télécharger en PDF
+  const downloadAsPDF = async () => {
+    if (!cardRef.current) {
+      console.error('Card reference not found');
+      alert('Veuillez attendre que la carte soit chargée');
+      return;
+    }
+    
+    try {
+      // Créer un conteneur temporaire propre sans Tailwind
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'fixed';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.background = selectedTemplate.baseStyles.backgroundColor;
+      document.body.appendChild(tempContainer);
+      
+      // Cloner la carte
+      const cardClone = cardRef.current.cloneNode(true);
+      
+      // Nettoyer TOUS les éléments récursivement
+      cleanElement(cardClone);
+      
+      // Appliquer les styles de base
+      cardClone.style.width = '600px';
+      cardClone.style.aspectRatio = '3/4';
+      cardClone.style.padding = '40px';
+      cardClone.style.backgroundColor = selectedTemplate.baseStyles.backgroundColor;
+      cardClone.style.color = selectedTemplate.baseStyles.textColor;
+      cardClone.style.border = `6px double ${selectedTemplate.baseStyles.borderColor}`;
+      cardClone.style.borderRadius = '16px';
+      cardClone.style.display = 'flex';
+      cardClone.style.flexDirection = 'column';
+      cardClone.style.justifyContent = 'space-between';
+      cardClone.style.textAlign = 'center';
+      cardClone.style.position = 'relative';
+      cardClone.style.overflow = 'hidden';
+      
+      tempContainer.appendChild(cardClone);
+      
+      const canvas = await html2canvas(tempContainer, {
+        scale: 2,
+        backgroundColor: selectedTemplate.baseStyles.backgroundColor,
+        logging: false,
+        useCORS: true,
+        allowTaint: true
+      });
+      
+      document.body.removeChild(tempContainer);
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      // Dimensions de la carte pour centrer sur A4
+      const imgWidth = 150; // mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const x = (210 - imgWidth) / 2; // Centrer horizontalement sur A4
+      const y = 20; // Marge du haut
+      
+      pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+      pdf.save(`carte-${recipient.replace(/\s+/g, '-')}.pdf`);
+    } catch (error) {
+      console.error('Erreur lors du téléchargement du PDF:', error);
+      alert('Erreur lors du téléchargement du PDF: ' + error.message);
+    }
+  };
+
   if (isFinished) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-cherish-cream via-white to-cherish-pink/5 flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-lg w-full bg-white p-10 rounded-[40px] shadow-2xl text-center border border-cherish-pink/20"
+          className="max-w-4xl w-full bg-white p-10 rounded-[40px] shadow-2xl border border-cherish-pink/20"
         >
-          <motion.div 
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring" }}
-            className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-500/30"
-          >
-            <CheckCircle2 size={40} strokeWidth={3} />
-          </motion.div>
-          <h2 className="text-3xl font-serif font-bold mb-3 text-slate-800">
-            Carte Prête !
-          </h2>
-          <p className="text-slate-600 mb-10 text-sm">
-            Votre message pour <span className="font-semibold text-cherish-red">{recipient}</span> a été créé avec succès.
-          </p>
-          
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <motion.button 
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center justify-center gap-2 bg-cherish-red text-white py-3.5 rounded-2xl font-semibold hover:bg-cherish-rose transition-colors shadow-lg shadow-cherish-red/20"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            {/* Preview de la carte */}
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 text-center">Aperçu final</p>
+              <div 
+                ref={cardRef}
+                data-card-element="true"
+                className="aspect-[3/4] rounded-2xl p-8 flex flex-col justify-between text-center shadow-2xl relative overflow-hidden"
+                style={{ 
+                  backgroundColor: selectedTemplate.baseStyles.backgroundColor,
+                  color: selectedTemplate.baseStyles.textColor,
+                  border: `6px double ${selectedTemplate.baseStyles.borderColor}`
+                }}
               >
-                <Share2 size={18} />
-                Partager
-              </motion.button>
-              <motion.button 
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center justify-center gap-2 bg-slate-800 text-white py-3.5 rounded-2xl font-semibold hover:bg-slate-900 transition-colors"
-              >
-                <Download size={18} />
-                Télécharger
-              </motion.button>
+                <div className="relative z-10 h-full flex flex-col">
+                  <p className="text-lg mb-4 italic font-serif opacity-90">Chère {recipient},</p>
+                  
+                  {image && (
+                    <div className="w-full aspect-square mb-4 rounded-xl overflow-hidden shadow-xl border-4 border-white">
+                      <img src={image} className="w-full h-full object-cover" alt="Card" />
+                    </div>
+                  )}
+
+                  <div className="flex-grow flex items-center justify-center px-2">
+                    <h3 className="text-xl font-bold leading-tight font-serif italic">
+                      "{message}"
+                    </h3>
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-current/20">
+                    <p className="font-serif italic text-base opacity-80 mb-1">{signOff}</p>
+                    <p className="font-bold text-lg uppercase tracking-wide">{sender}</p>
+                  </div>
+                </div>
+
+                {/* Decorative Heart */}
+                <div className="absolute -bottom-10 -right-10 opacity-5 pointer-events-none">
+                  <Heart size={180} fill="currentColor" />
+                </div>
+              </div>
             </div>
-            <button 
-              onClick={() => setIsFinished(false)}
-              className="w-full text-slate-400 hover:text-cherish-red transition-colors text-sm font-medium py-2"
-            >
-              Modifier la carte
-            </button>
+
+            {/* Actions */}
+            <div className="flex flex-col justify-center">
+              <motion.div 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring" }}
+                className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-500/30"
+              >
+                <CheckCircle2 size={40} strokeWidth={3} />
+              </motion.div>
+              <h2 className="text-3xl font-serif font-bold mb-3 text-slate-800 text-center">
+                Carte Prête !
+              </h2>
+              <p className="text-slate-600 mb-10 text-sm text-center">
+                Votre message pour <span className="font-semibold text-cherish-red">{recipient}</span> a été créé avec succès.
+              </p>
+              
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <motion.button 
+                    onClick={downloadAsImage}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center justify-center gap-2 bg-cherish-red text-white py-3.5 rounded-2xl font-semibold hover:bg-cherish-rose transition-colors shadow-lg shadow-cherish-red/20"
+                  >
+                    <FileImage size={18} />
+                    Image
+                  </motion.button>
+                  <motion.button 
+                    onClick={downloadAsPDF}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center justify-center gap-2 bg-slate-800 text-white py-3.5 rounded-2xl font-semibold hover:bg-slate-900 transition-colors"
+                  >
+                    <Download size={18} />
+                    PDF
+                  </motion.button>
+                </div>
+                <button 
+                  onClick={() => setIsFinished(false)}
+                  className="w-full text-slate-400 hover:text-cherish-red transition-colors text-sm font-medium py-2"
+                >
+                  Modifier la carte
+                </button>
+              </div>
+            </div>
           </div>
         </motion.div>
       </div>
