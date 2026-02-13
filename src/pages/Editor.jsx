@@ -37,62 +37,129 @@ const Editor = () => {
   };
 
   // Fonction pour nettoyer récursivement tous les styles Tailwind
-  const cleanElement = (element) => {
-    // Vérifier si c'est un élément SVG
-    if (element instanceof SVGElement) {
-      // Pour les SVG, utiliser setAttribute au lieu de className
-      element.setAttribute('class', '');
-    } else if (element.className !== undefined) {
-      // Pour les éléments HTML normaux
-      element.className = '';
+  // Fonction pour créer une carte propre pour le téléchargement
+  const createDownloadCard = () => {
+    const card = document.createElement('div');
+    card.style.width = '600px';
+    card.style.height = '800px';
+    card.style.padding = '40px';
+    card.style.backgroundColor = selectedTemplate.baseStyles.backgroundColor;
+    card.style.color = selectedTemplate.baseStyles.textColor;
+    card.style.border = `6px double ${selectedTemplate.baseStyles.borderColor}`;
+    card.style.borderRadius = '16px';
+    card.style.display = 'flex';
+    card.style.flexDirection = 'column';
+    card.style.justifyContent = 'space-between';
+    card.style.textAlign = 'center';
+    card.style.position = 'relative';
+    card.style.overflow = 'hidden';
+    card.style.fontFamily = 'Georgia, serif';
+    
+    // Container principal
+    const content = document.createElement('div');
+    content.style.position = 'relative';
+    content.style.zIndex = '10';
+    content.style.height = '100%';
+    content.style.display = 'flex';
+    content.style.flexDirection = 'column';
+    
+    // Destinataire
+    const recipientText = document.createElement('p');
+    recipientText.textContent = `Chère ${recipient},`;
+    recipientText.style.fontSize = '20px';
+    recipientText.style.marginBottom = '20px';
+    recipientText.style.fontStyle = 'italic';
+    recipientText.style.opacity = '0.9';
+    content.appendChild(recipientText);
+    
+    // Photo si présente
+    if (image) {
+      const imgContainer = document.createElement('div');
+      imgContainer.style.width = '100%';
+      imgContainer.style.maxHeight = '400px';
+      imgContainer.style.marginBottom = '20px';
+      imgContainer.style.borderRadius = '12px';
+      imgContainer.style.overflow = 'hidden';
+      imgContainer.style.border = '4px solid white';
+      imgContainer.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
+      imgContainer.style.display = 'flex';
+      imgContainer.style.alignItems = 'center';
+      imgContainer.style.justifyContent = 'center';
+      
+      const img = document.createElement('img');
+      img.src = image;
+      img.style.width = '100%';
+      img.style.height = 'auto';
+      img.style.objectFit = 'contain';
+      imgContainer.appendChild(img);
+      content.appendChild(imgContainer);
     }
     
-    // Parcourir tous les enfants
-    Array.from(element.children).forEach(child => {
-      cleanElement(child);
-    });
+    // Message principal
+    const messageContainer = document.createElement('div');
+    messageContainer.style.flexGrow = '1';
+    messageContainer.style.display = 'flex';
+    messageContainer.style.alignItems = 'center';
+    messageContainer.style.justifyContent = 'center';
+    messageContainer.style.padding = '0 10px';
+    
+    const messageText = document.createElement('h3');
+    messageText.textContent = `"${message}"`;
+    messageText.style.fontSize = '24px';
+    messageText.style.fontWeight = 'bold';
+    messageText.style.lineHeight = '1.4';
+    messageText.style.fontStyle = 'italic';
+    messageText.style.margin = '0';
+    messageContainer.appendChild(messageText);
+    content.appendChild(messageContainer);
+    
+    // Signature
+    const signatureContainer = document.createElement('div');
+    signatureContainer.style.marginTop = '30px';
+    signatureContainer.style.paddingTop = '30px';
+    signatureContainer.style.borderTop = `1px solid ${selectedTemplate.baseStyles.textColor}`;
+    signatureContainer.style.opacity = '0.8';
+    
+    const signOffText = document.createElement('p');
+    signOffText.textContent = signOff;
+    signOffText.style.fontSize = '18px';
+    signOffText.style.fontStyle = 'italic';
+    signOffText.style.marginBottom = '5px';
+    signatureContainer.appendChild(signOffText);
+    
+    const senderText = document.createElement('p');
+    senderText.textContent = sender;
+    senderText.style.fontSize = '20px';
+    senderText.style.fontWeight = 'bold';
+    senderText.style.textTransform = 'uppercase';
+    senderText.style.letterSpacing = '2px';
+    senderText.style.margin = '0';
+    signatureContainer.appendChild(senderText);
+    
+    content.appendChild(signatureContainer);
+    card.appendChild(content);
+    
+    return card;
   };
 
   // Télécharger en Image (PNG)
   const downloadAsImage = async () => {
-    if (!cardRef.current) {
-      console.error('Card reference not found');
-      alert('Veuillez attendre que la carte soit chargée');
-      return;
-    }
-    
     try {
-      // Créer un conteneur temporaire propre sans Tailwind
+      // Créer un conteneur temporaire
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'fixed';
       tempContainer.style.left = '-9999px';
-      tempContainer.style.background = selectedTemplate.baseStyles.backgroundColor;
+      tempContainer.style.top = '0';
       document.body.appendChild(tempContainer);
       
-      // Cloner la carte
-      const cardClone = cardRef.current.cloneNode(true);
+      // Créer la carte propre
+      const card = createDownloadCard();
+      tempContainer.appendChild(card);
       
-      // Nettoyer TOUS les éléments récursivement
-      cleanElement(cardClone);
+      // Attendre que les images se chargent
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Appliquer les styles de base
-      cardClone.style.width = '600px';
-      cardClone.style.aspectRatio = '3/4';
-      cardClone.style.padding = '40px';
-      cardClone.style.backgroundColor = selectedTemplate.baseStyles.backgroundColor;
-      cardClone.style.color = selectedTemplate.baseStyles.textColor;
-      cardClone.style.border = `6px double ${selectedTemplate.baseStyles.borderColor}`;
-      cardClone.style.borderRadius = '16px';
-      cardClone.style.display = 'flex';
-      cardClone.style.flexDirection = 'column';
-      cardClone.style.justifyContent = 'space-between';
-      cardClone.style.textAlign = 'center';
-      cardClone.style.position = 'relative';
-      cardClone.style.overflow = 'hidden';
-      
-      tempContainer.appendChild(cardClone);
-      
-      const canvas = await html2canvas(tempContainer, {
+      const canvas = await html2canvas(card, {
         scale: 2,
         backgroundColor: selectedTemplate.baseStyles.backgroundColor,
         logging: false,
@@ -114,44 +181,22 @@ const Editor = () => {
 
   // Télécharger en PDF
   const downloadAsPDF = async () => {
-    if (!cardRef.current) {
-      console.error('Card reference not found');
-      alert('Veuillez attendre que la carte soit chargée');
-      return;
-    }
-    
     try {
-      // Créer un conteneur temporaire propre sans Tailwind
+      // Créer un conteneur temporaire
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'fixed';
       tempContainer.style.left = '-9999px';
-      tempContainer.style.background = selectedTemplate.baseStyles.backgroundColor;
+      tempContainer.style.top = '0';
       document.body.appendChild(tempContainer);
       
-      // Cloner la carte
-      const cardClone = cardRef.current.cloneNode(true);
+      // Créer la carte propre
+      const card = createDownloadCard();
+      tempContainer.appendChild(card);
       
-      // Nettoyer TOUS les éléments récursivement
-      cleanElement(cardClone);
+      // Attendre que les images se chargent
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Appliquer les styles de base
-      cardClone.style.width = '600px';
-      cardClone.style.aspectRatio = '3/4';
-      cardClone.style.padding = '40px';
-      cardClone.style.backgroundColor = selectedTemplate.baseStyles.backgroundColor;
-      cardClone.style.color = selectedTemplate.baseStyles.textColor;
-      cardClone.style.border = `6px double ${selectedTemplate.baseStyles.borderColor}`;
-      cardClone.style.borderRadius = '16px';
-      cardClone.style.display = 'flex';
-      cardClone.style.flexDirection = 'column';
-      cardClone.style.justifyContent = 'space-between';
-      cardClone.style.textAlign = 'center';
-      cardClone.style.position = 'relative';
-      cardClone.style.overflow = 'hidden';
-      
-      tempContainer.appendChild(cardClone);
-      
-      const canvas = await html2canvas(tempContainer, {
+      const canvas = await html2canvas(card, {
         scale: 2,
         backgroundColor: selectedTemplate.baseStyles.backgroundColor,
         logging: false,
@@ -169,10 +214,10 @@ const Editor = () => {
       });
       
       // Dimensions de la carte pour centrer sur A4
-      const imgWidth = 150; // mm
+      const imgWidth = 150;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const x = (210 - imgWidth) / 2; // Centrer horizontalement sur A4
-      const y = 20; // Marge du haut
+      const x = (210 - imgWidth) / 2;
+      const y = 20;
       
       pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
       pdf.save(`carte-${recipient.replace(/\s+/g, '-')}.pdf`);
